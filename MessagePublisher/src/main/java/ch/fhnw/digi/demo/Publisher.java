@@ -1,5 +1,7 @@
 package ch.fhnw.digi.demo;
 
+import java.util.UUID;
+
 import javax.annotation.PostConstruct;
 import javax.jms.ConnectionFactory;
 
@@ -20,8 +22,6 @@ public class Publisher {
 
 	@Autowired
 	private SimpleUi simpleUi;
-	
-	private SimpleUi ackUi = new SimpleUi();
 
 	@Autowired
 	private JmsTemplate jmsTemplate;
@@ -29,33 +29,28 @@ public class Publisher {
 	@PostConstruct
 	void run() {
 
-		int counter = 0;
+		jmsTemplate.setMessageConverter(jacksonJmsMessageConverter());
 
-		//while (true) {
+		final String correlationID = UUID.randomUUID().toString();;
 
-			jmsTemplate.setMessageConverter(jacksonJmsMessageConverter());
+		// publish a new GreeterMessage to the channel "greetRequests"
+		jmsTemplate.convertAndSend("greetRequests", new GreeterMessage("Hello!"), m -> {
+			m.setStringProperty("someHeaderField", "someImportantValue");
+			m.setJMSCorrelationID(correlationID);
+			return m;
+		});
 
-			final String correlationID = "message" + counter;
+		// just so we see something in our gui
+		simpleUi.setMessage("published Message with id: " + correlationID);
 
-			// publish a new GreeterMessage to the channel "greetRequests"
-			jmsTemplate.convertAndSend("greetRequests", new GreeterMessage("Receiver " + counter), m -> {
-				m.setStringProperty("someHeaderField", "someImportantValue");
-				m.setJMSCorrelationID(correlationID);
-				return m;
-			});
 
-			// just so we see someting in our gui
-			simpleUi.setMessage("published Message " + counter);
-
-			counter++;
-
-			// wait for 2 seconds
-			try {
-				Thread.sleep(2000);
-			} catch (InterruptedException e) {
-			}
+		// wait for 2 seconds
+		try {
+			Thread.sleep(2000);
+		} catch (InterruptedException e) {
 		}
-	//}
+
+	}
 
 	// used to convert our java message object into a JSON String that can be sent
 	public MessageConverter jacksonJmsMessageConverter() {
@@ -65,12 +60,12 @@ public class Publisher {
 		return converter;
 	}
 	
+	
 	class AckReceiver {
-
 
 	    @JmsListener(destination = "ackQueue", containerFactory = "myFactory")
 	    public void receiveConfirmation(String ackMessage) {
-	    	ackUi.setMessage("Ack: " + ackMessage);
+	    	simpleUi.setMessage("Ack: " + ackMessage);
 	        System.out.println("Received confirmation: " + ackMessage);
 
 	    }
@@ -83,13 +78,11 @@ public class Publisher {
 			// converter
 			configurer.configure(factory, connectionFactory);
 
-			//simpleUi.setMessage("connection factory created");
 
 			// You could still override some of Boot's default if necessary.
 			return factory;
 		}
-	}
-
+	} 
 }
 
 

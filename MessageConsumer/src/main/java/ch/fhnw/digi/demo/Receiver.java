@@ -9,9 +9,11 @@ import org.springframework.jms.annotation.JmsListener;
 import org.springframework.jms.config.DefaultJmsListenerContainerFactory;
 import org.springframework.jms.config.JmsListenerContainerFactory;
 import org.springframework.jms.core.JmsTemplate;
+import org.springframework.jms.support.JmsHeaders;
 import org.springframework.jms.support.converter.MappingJackson2MessageConverter;
 import org.springframework.jms.support.converter.MessageConverter;
 import org.springframework.jms.support.converter.MessageType;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -28,13 +30,13 @@ public class Receiver {
 
 
 	@JmsListener(destination = "greetRequests", containerFactory = "myFactory")
-	public void receiveMessage(GreeterMessage c) {
+	public void receiveMessage(GreeterMessage c, @Header(JmsHeaders.CORRELATION_ID) String correlationId) {
 
-		simpleui.setMessage("received greetingRequest\n Hello " + c.getName());
+		simpleui.setMessage("received greetingRequest " + c.getName() + " with id: " + correlationId);
 
 		try {
 			Thread.sleep(1000);
-			ackSender.sendMessage(new String("Acknowledgement from " + c.getName()));
+			ackSender.sendMessage(new String("Acknowledgement from Receiver for id:" + correlationId));
 		} catch (InterruptedException e) {
 		}
 
